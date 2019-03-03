@@ -1,22 +1,20 @@
 const mongoose = require('mongoose');
 
 const messageSchema = new mongoose.Schema({
-    id: { type: Number, unique: true },
+    id: { type: String, unique: true },
     sentAt: String,
     to: String,
     from: String,
     body: String,
-});
-const Message = mongoose.model('Message', messageSchema,
-    { timestamps: true });
+}, { timestamps: true });
+const Message = mongoose.model('Message', messageSchema);
 
 
 const phoneSchema = new mongoose.Schema({
     number: { type: String, index: true, unique: true },
     pairedPhone: mongoose.Schema.ObjectId
-});
-const PhoneNumber = mongoose.model('PhoneNumber', phoneSchema,
-    { timestamps: true });
+}, { timestamps: true });
+const PhoneNumber = mongoose.model('PhoneNumber', phoneSchema);
 
 
 const phonePairSchema = new mongoose.Schema({
