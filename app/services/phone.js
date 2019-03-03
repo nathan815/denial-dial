@@ -1,40 +1,72 @@
 const moment = require('moment');
 const { PhoneNumber, PhonePair } = require('../db/models');
-const twilioService = require('./twilio');
+const messageService = require('./message');
+const sleep = require('../utils/sleep');
 
 module.exports = {
 
-    async getPairedPhone(phoneNumber) {
+    async getPhone(phoneNumber) {
         const phone = await PhoneNumber.findOne({
             number: phoneNumber
         });
-        return phone ? phone.pairedPhone : null;
+        return phone;
     },
 
     /**
-     * Returns a cursor to query of phones who first texted at least 30 mins ago
+     * Continually assigns phones
+     */
+    async phoneAssignmentRunner() {
+        console.log('-- phoneAssignmentRunner --');
+        
+        await this.assignReadyPhones();
+        
+        await sleep(10 * 1000);
+
+        this.phoneAssignmentRunner();
+    },
+
+    /**
+     * Queries for unpaired phones who first texted at least 30 mins ago
      */
     async getPhonesReadyToText() {
-        const cursor = PhoneNumber.find({
-            _id: { $ne: phone._id },
+        const result = await PhoneNumber.find({
             pairedPhone: { $exists: false },
             createdAt: {
                 $lte: moment().subtract(30, 'minutes').toDate()
             }
-        });
-        return cursor;
+        }).exec();
+        return result;
     },
 
     /**
-     * Assigns phones who are ready to text to other phones randomly
+     * Randomly assigns each phone that is ready to another phone
+     * 
      */
     async assignReadyPhones() {
-        const phones = this.getPhonesReadyToText().toArray();
+        const phones = await this.getPhonesReadyToText();
 
-        phones.forEach((phone, i) => {
-            if(!phone) return;
-            const randomIndex = Math.floor(Math.random() * (phones.length-1));
-            const randomPhone = phones[randomIndex];
+        if(!phones || phones.length == 0) {
+            return;
+        }
+
+        console.log('phones', phones);
+        const availablePhones = phones.slice(); // shallow copy to track phones not yet paired
+
+        for(let [index, phone] of phones.entries()) {
+            delete availablePhones[index];
+
+            const randomIndex = Math.floor(Math.random() * (availablePhones.length-1));
+            const randomPhone = availablePhones[randomIndex];
+
+            // If no more phones are available to pair
+            // then send this number the final message
+            if(!randomPhone) {
+                await messageService.sendFinalMessage();
+                await this.removePhoneNumber(phone.number);
+                return;
+            }
+
+            delete availablePhones[randomIndex];
 
             phone.pairedPhone = randomPhone._id;
             randomPhone.pairedPhone = phone._id;
@@ -42,22 +74,21 @@ module.exports = {
             await Promise.all([
                 phone.save(),
                 randomPhone.save(),
-                twilioService.sendText({
+                messageService.send({
                     to: phone.number,
                     body: "Hey!"
                 }),
-                twilioService.sendText({
+                messageService.send({
                     to: randomPhone.number,
                     body: "Hey!"
                 })
             ]);
             
-            delete phones[i];
-            delete phones[randomIndex];
-        });
+        }
     },
 
-    insertPhoneNumber(phoneNumber) {
+    savePhoneNumber(phoneNumber) {
+        console.log('Saving phone number ', phoneNumber);
         return PhoneNumber.create({
             number: phoneNumber
         });

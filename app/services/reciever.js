@@ -1,4 +1,3 @@
-const twilioService = require('./twilio');
 const messageService = require('./message');
 const phoneService = require('./phone');
 
@@ -14,15 +13,17 @@ module.exports = {
                 body: messageData.Body
             }, true);
 
-            const pairedPhone = await phoneService.getPairedPhone(message.from);
+            const phone = await phoneService.getPhone(message.from);
 
-            if (!pairedPhone) {
-                await phoneService.insertPhoneNumber(message.from);
-            } 
-            else {
-                twilioService.sendText({
+            // if this phone number hasn't been saved yet
+            if (!phone) {
+                await phoneService.savePhoneNumber(message.from);
+            }
+            // if phone is paired then forward it to the paired phone
+            else if (phone.pairedPhone) {
+                await messageService.send({
                     body: message.body,
-                    to: pairedPhone.number
+                    to: phone.pairedPhone.number
                 });
             }
         } catch (err) {
