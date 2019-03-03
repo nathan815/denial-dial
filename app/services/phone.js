@@ -17,9 +17,9 @@ module.exports = {
      */
     async phoneAssignmentRunner() {
         console.log('-- phoneAssignmentRunner --');
-        
+
         await this.assignReadyPhones();
-        
+
         await sleep(10 * 1000);
 
         this.phoneAssignmentRunner();
@@ -31,9 +31,10 @@ module.exports = {
     async getPhonesReadyToText() {
         const result = await PhoneNumber.find({
             pairedPhone: { $exists: false },
-            createdAt: {
-                $lte: moment().subtract(30, 'minutes').toDate()
-            }
+            completed: { $ne: true },
+            // createdAt: {
+            //     $lte: moment().subtract(30, 'minutes').toDate()
+            // }
         }).exec();
         return result;
     },
@@ -45,24 +46,24 @@ module.exports = {
     async assignReadyPhones() {
         const phones = await this.getPhonesReadyToText();
 
-        if(!phones || phones.length == 0) {
+        if (!phones || phones.length == 0) {
             return;
         }
 
         console.log('phones', phones);
         const availablePhones = phones.slice(); // shallow copy to track phones not yet paired
 
-        for(let [index, phone] of phones.entries()) {
+        for (let [index, phone] of phones.entries()) {
             delete availablePhones[index];
 
-            const randomIndex = Math.floor(Math.random() * (availablePhones.length-1));
+            const randomIndex = Math.floor(Math.random() * (availablePhones.length - 1));
             const randomPhone = availablePhones[randomIndex];
 
             // If no more phones are available to pair
             // then send this number the final message
-            if(!randomPhone) {
-                await messageService.sendFinalMessage();
-                await this.removePhoneNumber(phone.number);
+            if (!randomPhone) {
+                await messageService.sendFinalMessage(phone.number);
+                await this.markPhoneNumberCompleted(phone.number);
                 return;
             }
 
@@ -83,21 +84,26 @@ module.exports = {
                     body: "Hey!"
                 })
             ]);
-            
+
         }
     },
 
     savePhoneNumber(phoneNumber) {
         console.log('Saving phone number ', phoneNumber);
         return PhoneNumber.create({
-            number: phoneNumber
+            number: phoneNumber,
+            completed: false
         });
     },
 
-    removePhoneNumber(phoneNumber) {
-        return PhoneNumber.findOneAndRemove({
-            number: phoneNumber
-        });
+    markPhoneNumberCompleted(phoneNumber) {
+        try {
+            return PhoneNumber.updateOne({ number: phoneNumber }, {
+                completed: true
+            });
+        } catch (err) {
+            console.log(err);
+        }
     },
 
 }

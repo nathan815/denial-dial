@@ -1,4 +1,4 @@
-const { TWILIO_ID, TWILIO_TOKEN } = process.env;
+const { TWILIO_ID, TWILIO_TOKEN, TWILIO_PHONE_NUMBER } = process.env;
 const { Message } = require('../db/models');
 const twilio = require('twilio');
 const client = twilio(TWILIO_ID, TWILIO_TOKEN);
@@ -7,17 +7,18 @@ module.exports = {
     async createMessage(message, checkIfExists = false) {
         if(checkIfExists) {
             const msg = await Message.findOne({
-                id: message.sid
+                sid: message.sid
             }).exec();
             if(msg) {
                 return false;
             }
         }
-        console.log('Creating message document')
+        console.log('Creating message document', message)
         return Message.create({
-            id: message.sid,
+            sid: message.sid,
             from: message.from,
-            body: message.body
+            body: message.body,
+            completed: false
         });
     },
 
@@ -32,12 +33,12 @@ module.exports = {
     /**
      * Sends a message
      * 
-     * @param {object} message { body: String, to: String }
+     * @param {object} messageData { body: String, to: String }
      */
-    async send(message) {
-        const fromNumber = process.env.TWILIO_NUMBER;
-        message['from'] = fromNumber;
-        const message = await client.messages.create(message);
-        return this.createMessage(message);
+    async send(messageData) {
+        messageData['from'] = TWILIO_PHONE_NUMBER;
+        console.log(messageData);
+        const message = await client.messages.create(messageData);
+        return this.createMessage(messageData);
     },
 }
