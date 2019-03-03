@@ -14,7 +14,6 @@ module.exports = {
         return Message.create({
             id: message.sid,
             from: message.from,
-            to: message.to,
             body: message.body
         });
     },

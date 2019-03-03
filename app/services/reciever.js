@@ -4,16 +4,20 @@ const phoneService = require('./phone');
 
 module.exports = {
     async receivedMessage(messageData) {
-        console.log('Received message ', messageData.sid);
+        console.log('Received message ', messageData.MessageSid);
 
+        let message;
         try {
-            const message = await messageService.createMessage(messageData, true);
+            message = await messageService.createMessage({
+                sid: messageData.MessageSid,
+                from: messageData.From,
+                body: messageData.Body
+            }, true);
 
             const pairedPhone = await phoneService.getPairedPhone(message.from);
 
-            // If the phone isn't paired then queue them up
-            if (pairedPhone === null) {
-                // TODO
+            if (!pairedPhone) {
+                phoneService.insertPhoneNumber(message.from);
             } 
             else {
                 twilioService.sendText({

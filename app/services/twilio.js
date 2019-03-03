@@ -1,10 +1,7 @@
 const { TWILIO_ID, TWILIO_TOKEN } = process.env;
 
-console.log(TWILIO_ID);
-
 const twilio = require('twilio');
 const client = twilio(TWILIO_ID, TWILIO_TOKEN);
-const MessagingResponse = twilio.twiml.MessagingResponse;
 const { Message } = require('../db/models');
 const messageService = require('../services/message');
 
