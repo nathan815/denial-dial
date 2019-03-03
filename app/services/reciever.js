@@ -17,7 +17,7 @@ module.exports = {
             const pairedPhone = await phoneService.getPairedPhone(message.from);
 
             if (!pairedPhone) {
-                phoneService.insertPhoneNumber(message.from);
+                await phoneService.insertPhoneNumber(message.from);
             } 
             else {
                 twilioService.sendText({

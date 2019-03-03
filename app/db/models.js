@@ -12,7 +12,7 @@ const Message = mongoose.model('Message', messageSchema);
 
 const phoneSchema = new mongoose.Schema({
     number: { type: String, index: true, unique: true },
-    pairedPhone: mongoose.Schema.ObjectId
+    pairedPhone: { type: mongoose.Schema.ObjectId, ref: 'PhoneNumber' }
 }, { timestamps: true });
 const PhoneNumber = mongoose.model('PhoneNumber', phoneSchema);
 
