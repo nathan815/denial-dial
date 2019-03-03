@@ -1,6 +1,8 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
+const MessagingResponse = require('twilio').twiml.MessagingResponse;
 
 // Load env variables from .env file
 if (process.env.NODE_ENV !== 'production') {
@@ -10,6 +12,8 @@ if (process.env.NODE_ENV !== 'production') {
 const reciverService = require('./services/reciever');
 
 const app = express();
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
 
 const { DB_NAME, DB_PORT, DB_USER, DB_PASS } = process.env;
 try {
@@ -27,6 +31,7 @@ app.post('/sms', (req, res, next) => {
         next(err);
     }
     res.status(200);
+    res.send(new MessagingResponse().toString());
 });
 
 // Start the server
