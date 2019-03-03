@@ -1,5 +1,5 @@
 const moment = require('moment');
-const { PhoneNumber, PhonePair } = require('../db/models');
+const { PhoneNumber } = require('../db/models');
 const messageService = require('./message');
 const sleep = require('../utils/sleep');
 
