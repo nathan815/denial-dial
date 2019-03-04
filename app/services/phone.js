@@ -1,26 +1,31 @@
 const moment = require('moment');
 const { PhoneNumber } = require('../db/models');
 const messageService = require('./message');
+const callService = require('./call');
 const sleep = require('../utils/sleep');
+
+const SLEEP_MS = 10 * 1000;
 
 module.exports = {
 
     async getPhone(phoneNumber) {
         const phone = await PhoneNumber.findOne({
             number: phoneNumber
-        });
+        }).populate('pairedPhone');
         return phone;
     },
 
     /**
-     * Continually assigns phones
+     * Continually assigns ready phones
+     * 
+     * A phone is ready to be replied to and paired after 
      */
     async phoneAssignmentRunner() {
-        console.log('-- phoneAssignmentRunner --');
+        //console.log('-- phoneAssignmentRunner --');
 
         await this.assignReadyPhones();
 
-        await sleep(10 * 1000);
+        await sleep(SLEEP_MS);
 
         this.phoneAssignmentRunner();
     },
@@ -31,9 +36,8 @@ module.exports = {
     async getPhonesReadyToText() {
         const result = await PhoneNumber.find({
             pairedPhone: { $exists: false },
-            completed: { $ne: true },
             // createdAt: {
-            //     $lte: moment().subtract(30, 'minutes').toDate()
+            //     $lte: moment().subtract(15, 'seconds').toDate()
             // }
         }).exec();
         return result;
@@ -56,14 +60,16 @@ module.exports = {
         for (let [index, phone] of phones.entries()) {
             delete availablePhones[index];
 
-            const randomIndex = Math.floor(Math.random() * (availablePhones.length - 1));
+            const randomIndex = Math.floor(Math.random() * availablePhones.length);
             const randomPhone = availablePhones[randomIndex];
 
-            // If no more phones are available to pair
-            // then send this number the final message
             if (!randomPhone) {
-                await messageService.sendFinalMessage(phone.number);
-                await this.markPhoneNumberCompleted(phone.number);
+                // only send the final message and remove the number after some time
+                if (moment(phone.createdAt).add(2, 'minutes') < moment.now()) {
+                    await messageService.sendFinalMessage(phone.number);
+                    await callService.makeCall(phone.number);
+                    await this.removePhoneNumber(phone.number);
+                }
                 return;
             }
 
@@ -91,15 +97,14 @@ module.exports = {
     savePhoneNumber(phoneNumber) {
         console.log('Saving phone number ', phoneNumber);
         return PhoneNumber.create({
-            number: phoneNumber,
-            completed: false
+            number: phoneNumber
         });
     },
 
-    markPhoneNumberCompleted(phoneNumber) {
+    removePhoneNumber(phoneNumber) {
         try {
-            return PhoneNumber.updateOne({ number: phoneNumber }, {
-                completed: true
+            return PhoneNumber.findOneAndRemove({
+                number: phoneNumber
             });
         } catch (err) {
             console.log(err);

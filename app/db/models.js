@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const messageSchema = new mongoose.Schema({
-    sid: { type: String, unique: true },
+    sid: String,
     sentAt: String,
     to: String,
     from: String,
@@ -13,7 +13,7 @@ const Message = mongoose.model('Message', messageSchema);
 const phoneSchema = new mongoose.Schema({
     number: { type: String, index: true, unique: true },
     pairedPhone: { type: mongoose.Schema.ObjectId, ref: 'PhoneNumber' },
-    completed: Boolean
+    sentMessageCount: 0
 }, { timestamps: true });
 const PhoneNumber = mongoose.model('PhoneNumber', phoneSchema);
 
